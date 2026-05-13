@@ -60,12 +60,13 @@ def displays_a_dailysummary(task_list : list ,chose):
 
 def displaying_the_menu_and_selecting(task_list,chose):
     """A function that checks your selection"""
-    while True:
-        if chose not in  "12345":
-             chose = input("Choose the option that suits you by number:")
-        else:
-            break     
-    displays_a_dailysummary(task_list,chose)
+    while chose not in "123456":
+        chose = input("Invalid option. Choose 1-6: ")
+    if chose == "6":
+        return "exit"
+    
+    return chose     
+        
 def main(task_list):
     while True:
         print("How many tasks are there: 1")
@@ -75,8 +76,11 @@ def main(task_list):
         print("Show all tasks: 5")
         print("Stop the menu.:6")
         chose = input("Choose the option that suits you by number:")
-        if chose == "6":
-            break
-        displaying_the_menu_and_selecting(task_list,chose)
+        result = displaying_the_menu_and_selecting(task_list,chose)
+        if result == "exit":
+            print("goodbye")
+            return
+        displays_a_dailysummary(task_list,result)
+        
 
 main(List_of_tasks)
