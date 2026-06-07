@@ -1,0 +1,17 @@
+[
+    {
+        "id": 2,
+        "type": "hexagon",
+        "side": 32.0
+    },
+    {
+        "id": 3,
+        "type": "hexagon",
+        "side": 60.0
+    },
+     {
+        "id": 3,
+        "type": "hexagon",
+        "side": 89.0
+    }
+]
