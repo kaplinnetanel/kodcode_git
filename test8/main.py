@@ -1,148 +1,93 @@
 import logging
 import json
-from fastapi import FastAPI,HTTPException
+from fastapi import FastAPI, HTTPException
 
 NAME_FILE = "weapons.json"
 
 app = FastAPI()
 
+# הגדרת לוגים - נשמר כפי שכתבת
 logging.basicConfig(
     level=logging.DEBUG,
     filename="my_server.log", 
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
-
-loger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__) # תיקון שם המשתנה (היה loger)
 
 def load_file(name_file):
-    """The function downloads the data from the storage file"""
-    with open(name_file,"r",encoding="utf-8") as file:
-        loger.info("The function was able to successfully open the file and read the data")
+    with open(name_file, "r", encoding="utf-8") as file:
         return json.load(file)
 
-def dump_file(name_file,data):
-    """The function inserts the data into the file and updates it"""
-    with open(name_file,"w",encoding="utf-8") as file:
-            json.dump(data,file,indent=4)
-            loger.info("The new data was successfully entered into the file")
-            return True
+def dump_file(name_file, data):
+    with open(name_file, "w", encoding="utf-8") as file:
+        json.dump(data, file, indent=4)
 
 @app.get("/weapons")
 def returns_all_weapons():
-     weapons = load_file(NAME_FILE)
-     loger.info("This function brings you the list of all weapons")
-     return weapons
-
+    return load_file(NAME_FILE)
 
 @app.get("/weapons/{id}")
-def return_weapons_by_id(id:int):
+def return_weapons_by_id(id: int):
     weapons = load_file(NAME_FILE)
-    for weapon in weapons:
-        if weapon["id"] == id:
-            loger.info("The weapon you were looking for has been successfully found!")
-            return weapon
-    loger.warning("The weapon you were looking for was not found")    
-    raise HTTPException(404,"Weapon not found with the id you provided")       
+    # שימוש ב-next למציאת פריט בצורה יעילה
+    weapon = next((w for w in weapons if w["id"] == id), None)
+    if not weapon:
+        logger.warning(f"Weapon with id {id} not found")
+        raise HTTPException(status_code=404, detail="Weapon not found")
+    return weapon
 
-@app.post("/weapons,",status_code= 202)
-def Adding_a_new_product(product: dict):
-    """The function adds a new product"""
+@app.post("/weapons", status_code=201) # שינוי ל-201 Created
+def add_new_weapon(product: dict):
     products = load_file(NAME_FILE)
-    id = len(products) + 1 
-    if product.get("type") != None and product.get("model") != None and product.get("ammo_type") != None:
-        products.append({"id": id,"type":product["type"] , "model": product[ "model"], "ammo_type": product["mmo_type"], "condition": product["condition"]})
-        dump_file(NAME_FILE,products)
-        return {"id": id,"type":product["type"] , "model": product[ "model"], "ammo_type": product["mmo_type"], "condition": product["condition"]}
-    loger.error("Missing in database")     
-    raise HTTPException(400,"Missing in database")
-
-
-
+    # תיקון לוגיקת ה-ID
+    new_id = max([w["id"] for w in products], default=0) + 1
+    new_product = {
+        "id": new_id,
+        "type": product.get("type"),
+        "model": product.get("model"),
+        "ammo_type": product.get("ammo_type"),
+        "condition": product.get("condition")
+    }
+    
+    products.append(new_product)
+    dump_file(NAME_FILE, products)
+    return new_product
 
 @app.delete("/weapons/{id}")
-def delet_by_id(id:int):
-    """The function deletes items by ID"""
-    new__weapons = []
+def delete_by_id(id: int):
     products = load_file(NAME_FILE)
-    l = len(products)
-    for product in products:
-           if product["id"] == id :
-                loger.info("Item found and deleted")
-                continue
-           else:    
-                new__weapons.append(product) 
-    if l != len(new__weapons):                
-        dump_file(NAME_FILE,new__weapons)
-        return True
-    loger.error("item not found")
-    raise HTTPException(404,"Item not found")
+    new_weapons = [p for p in products if p["id"] != id]
+    
+    if len(new_weapons) == len(products):
+        raise HTTPException(status_code=404, detail="Item not found")
+        
+    dump_file(NAME_FILE, new_weapons)
+    return {"message": "Deleted successfully"}
 
-
-@app.get("/weapons/by-condition?condition={condition}")
-def returns_only_items(condition :str): 
-    """Returns only items with the received status"""
-    weapons_condition = []
-    weapons =load_file(NAME_FILE)
-    for weapon in weapons:
-           if weapon["condition"] == condition :
-                loger.info("Item found and weapons condition ")
-                weapons_condition.append(weapon)
-    if len(weapons_condition) == 0:
-         raise HTTPException (404,"No matching results found.")
-    return weapons_condition
-
+# תיקון נתיב ל-Query Parameter
+@app.get("/weapons/by-condition")
+def get_by_condition(condition: str):
+    weapons = load_file(NAME_FILE)
+    filtered = [w for w in weapons if w["condition"] == condition]
+    if not filtered:
+        raise HTTPException(status_code=404, detail="No matching results found.")
+    return filtered
 
 @app.get("/weapons/combat-ready")
-def return_by_type(type:str):
-    """Brings weapons by secret means that are brought to him"""
-    typ  = []
-    weapons =load_file(NAME_FILE)
-    for weapon in  weapons:
-        if weapon["type"] == typ and weapon["condition"] == "good" and weapon["condition"] == "new":
-            typ.append(weapon)
-            loger.info("finde the type")
-            continue
-    if len(typ) == 0:
-        loger.error("not find type by weapon")
-        raise HTTPException(404,"not found tne type or condition ")
-    loger.info("secses find type and condition")
-    return typ
+def get_combat_ready(type: str):
+    weapons = load_file(NAME_FILE)
+    # תיקון הלוגיקה: condition צריך להיות good או new
+    filtered = [w for w in weapons if w["type"] == type and w["condition"] in ["good", "new"]]
+    return filtered
 
 @app.get("/weapons/summary/by-type")
-def return_by_type():
-    """The function divides me by weapon types."""
-    typ  = {}
-    weapons =load_file(NAME_FILE)
-    for weapon in  weapons:
-        if weapon["type"] not in typ:
-            typ[weapon["type"]] = 1
-            loger.info("finde the type")
-            continue
-        else:
-            typ[weapon["type"]] += 1
-    if len(typ) != 0:
-        loger.info("scses type")           
-        return typ   
-    raise HTTPException(404,"not found type")        
-
-
-
-@app.delete("/weapons/by-condition? condition=")
-def delete_by_condition(condition:str):
-    """The system deletes by specific category."""
-    new__weapons = []
-    products = load_file(NAME_FILE)
-    l = len(products)
-    for product in products:
-           if product["condition"] == condition :
-                loger.info("Item found and deleted")
-                continue
-           else:    
-                new__weapons.append(product) 
-
-    dump_file(NAME_FILE,new__weapons)
-    loger.info("secses belete")
-    return True
+def get_summary():
+    weapons = load_file(NAME_FILE)
+    summary = {}
+    for w in weapons:
+        w_type = w["type"]
+        summary[w_type] = summary.get(w_type, 0) + 1
+    return summary
   
 
 

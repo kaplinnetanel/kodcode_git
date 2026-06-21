@@ -10,7 +10,7 @@ app = FastAPI()
 
 animals = Animal_DAL()
 
-app.include_router(router)
+app.include_router(router,prefix="/animals")
 
 @app.get("/")
 def home():
