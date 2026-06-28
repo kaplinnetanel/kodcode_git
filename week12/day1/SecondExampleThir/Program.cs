@@ -36,7 +36,7 @@ namespace Example
     {
         static void Main(string[] args)
         {
-            Track t = new Track(17, 412.5, 270);
+            Track t = new Track(17, 412.5, 27cd0);
             Console.WriteLine(t); // ToString() is called automatically
 
             t.Heading = 999;      // invalid, will be set to 0
